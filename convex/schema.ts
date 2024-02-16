@@ -9,5 +9,5 @@ export default defineSchema({
   likes: defineTable({
     liker: v.string(),
     messageId: v.id("messages"), // messageId field that links to a document in the messages table.
-  }),
+  }).index("byMessageId", ["messageId"]),
 });

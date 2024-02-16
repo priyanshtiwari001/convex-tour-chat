@@ -7,11 +7,26 @@ export const list = query({
     //handler represents the server-side code Convex will run when this query is called.
     // Grab the most recent messages.
     const messages = await ctx.db.query("messages").order("desc").take(100);
+    const messagesWithLikes = await Promise.all(
+      messages.map(async (message) => {
+        // Find the likes for each message
+        const likes = await ctx.db
+          .query("likes")
+          .withIndex("byMessageId", (q) => q.eq("messageId", message._id))
+          .collect();
+        // Join the count of likes with the message data
+        return {
+          ...message,
+          likes: likes.length,
+        };
+      })
+    );
     //messages.find((item) => console.log(item?.body?.replace(":)", "😀")));
 
     // Reverse the list so that it's in a chronological order.
-    return messages.reverse().map((message) => ({
+    return messagesWithLikes.reverse().map((message) => ({
       ...message,
+      // Format smileys
       body: message.body.replaceAll(":)", "😊"),
     }));
   },
@@ -26,12 +41,11 @@ export const send = mutation({
 });
 
 export const like = mutation({
-  args: { likes: v.string(), messageId: v.id("messages") },
-  handler: async function likes(ctx, { likes, messageId }) {
-    // logic to write to like a msg
+  args: { liker: v.string(), messageId: v.id("messages") },
+  handler: async function (ctx, args) {
     await ctx.db.insert("likes", {
-      liker: likes,
-      messageId: messageId,
+      liker: args.liker,
+      messageId: args.messageId,
     });
   },
 });
